@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: identity-access-service
+  config:
+    import: configserver:http://localhost:8888

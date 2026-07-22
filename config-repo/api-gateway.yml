@@ -1,0 +1,81 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - http://localhost:3000
+              - http://localhost:5173
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowed-headers:
+              - Authorization
+              - Content-Type
+              - Accept
+            exposed-headers:
+              - Location
+            allow-credentials: true
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      routes:
+        - id: identity-access-service
+          uri: lb://identity-access-service
+          predicates:
+            - Path=/api/auth/**,/api/users/**
+        - id: supplier-po-service
+          uri: lb://supplier-po-service
+          predicates:
+            - Path=/api/suppliers/**,/api/purchase-orders/**
+        - id: warehouse-inventory-service
+          uri: lb://warehouse-inventory-service
+          predicates:
+            - Path=/api/inventory/**,/api/inbound-receipts/**,/api/pick-lists/**
+        - id: route-carrier-service
+          uri: lb://route-carrier-service
+          predicates:
+            - Path=/api/routes/**,/api/carriers/**,/api/rate-cards/**
+        - id: shipment-freight-service
+          uri: lb://shipment-freight-service
+          predicates:
+            - Path=/api/shipments/**,/api/freight-orders/**,/api/delivery-events/**
+        - id: compliance-doc-service
+          uri: lb://compliance-doc-service
+          predicates:
+            - Path=/api/shipment-documents/**,/api/compliance-flags/**
+        - id: notification-alert-service
+          uri: lb://notification-alert-service
+          predicates:
+            - Path=/api/notifications/**
+        - id: logistics-analytics-service
+          uri: lb://logistics-analytics-service
+          predicates:
+            - Path=/api/logistics-reports/**
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
+jwt:
+  secret: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
+  expiration: 86400000

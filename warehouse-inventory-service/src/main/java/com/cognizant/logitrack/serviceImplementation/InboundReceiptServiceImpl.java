@@ -1,0 +1,90 @@
+package com.cognizant.logitrack.serviceImplementation;
+
+import com.cognizant.logitrack.service.InboundReceiptService;
+import com.cognizant.logitrack.client.PurchaseOrderClient;
+import com.cognizant.logitrack.exception.ResourceNotFoundException;
+import com.cognizant.logitrack.dto.InboundReceiptDTO;
+import com.cognizant.logitrack.dto.PurchaseOrderDTO;
+import com.cognizant.logitrack.entity.InboundReceipt;
+import com.cognizant.logitrack.entity.WarehouseInventory;
+import com.cognizant.logitrack.enums.ReceiptStatus;
+import com.cognizant.logitrack.repository.InboundReceiptRepository;
+import com.cognizant.logitrack.repository.WarehouseInventoryRepository;
+import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Slf4j
+public class InboundReceiptServiceImpl implements InboundReceiptService {
+    private final InboundReceiptRepository inboundReceiptRepository;
+    private final PurchaseOrderClient purchaseOrderClient;
+    private final WarehouseInventoryRepository warehouseInventoryRepository;
+
+    public InboundReceiptServiceImpl(
+            InboundReceiptRepository inboundReceiptRepository,
+            PurchaseOrderClient purchaseOrderClient,
+            WarehouseInventoryRepository warehouseInventoryRepository) {
+        this.inboundReceiptRepository = inboundReceiptRepository;
+        this.purchaseOrderClient = purchaseOrderClient;
+        this.warehouseInventoryRepository = warehouseInventoryRepository;
+    }
+
+    @Override
+    public InboundReceiptDTO createReceipt(InboundReceiptDTO dto) {
+        InboundReceipt receipt = InboundReceipt.builder().supplierOrderId(dto.getSupplierOrderId()).warehouseId(dto.getWarehouseId()).receivedDate(dto.getReceivedDate()).receivedBy(dto.getReceivedBy()).status(ReceiptStatus.PENDING).build();
+        InboundReceipt saved = inboundReceiptRepository.save(receipt);
+        return toDTO(saved);
+    }
+
+    @Override
+    public List<InboundReceiptDTO> getByWarehouse(Integer warehouseId) {
+        return inboundReceiptRepository.findByWarehouseId(warehouseId).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Override
+    public InboundReceiptDTO updateStatus(Integer id, ReceiptStatus status) {
+        InboundReceipt receipt = inboundReceiptRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Inbound receipt not found with id: " + id));
+        ReceiptStatus previousStatus = receipt.getStatus();
+        receipt.setStatus(status);
+        InboundReceipt saved = inboundReceiptRepository.save(receipt);
+
+        if (status == ReceiptStatus.RECEIVED && previousStatus != ReceiptStatus.RECEIVED) {
+            try {
+                PurchaseOrderDTO po = purchaseOrderClient.getPurchaseOrderById(receipt.getSupplierOrderId());
+                if (po != null && po.getLineItems() != null) {
+                    String[] items = po.getLineItems().split(",");
+                    for (String item : items) {
+                        String[] parts = item.split("[:\\-]");
+                        if (parts.length == 2) {
+                            String sku = parts[0].trim();
+                            int qty = Integer.parseInt(parts[1].trim());
+
+                            List<WarehouseInventory> inventories = warehouseInventoryRepository.findBySku(sku);
+                            WarehouseInventory inv = inventories.stream()
+                                    .filter(i -> i.getWarehouseId().equals(receipt.getWarehouseId()))
+                                    .findFirst()
+                                    .orElse(null);
+
+                            if (inv != null) {
+                                inv.setQuantityOnHand((inv.getQuantityOnHand() == null ? 0 : inv.getQuantityOnHand()) + qty);
+                                warehouseInventoryRepository.save(inv);
+                            } else {
+                                WarehouseInventory newInv = WarehouseInventory.builder().sku(sku).productName("Product " + sku).warehouseId(receipt.getWarehouseId()).binLocation("RECEIVING").quantityOnHand(qty).quantityReserved(0).build();
+                                warehouseInventoryRepository.save(newInv);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to auto-update inventory for receipt {}: {}", id, e.getMessage());
+            }
+        }
+        return toDTO(saved);
+    }
+
+    private InboundReceiptDTO toDTO(InboundReceipt r) {
+        return InboundReceiptDTO.builder().receiptId(r.getReceiptId()).supplierOrderId(r.getSupplierOrderId()).warehouseId(r.getWarehouseId()).receivedDate(r.getReceivedDate()).receivedBy(r.getReceivedBy()).status(r.getStatus()).build();
+    }
+}
