@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: compliance-doc-service
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB
   datasource:
     url: jdbc:mysql://localhost:3306/logitrack_compliance_doc_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
     username: root
@@ -40,6 +45,12 @@ resilience4j:
 jwt:
   secret: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
   expiration: 86400000
+
+# Local filesystem location where uploaded shipment documents are stored.
+# A relative path is persisted on each document record.
+document:
+  storage:
+    location: uploads/shipment-documents
 
 
 

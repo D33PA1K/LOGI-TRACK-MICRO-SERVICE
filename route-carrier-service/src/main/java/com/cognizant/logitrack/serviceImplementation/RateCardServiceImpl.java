@@ -156,6 +156,14 @@ public class RateCardServiceImpl implements RateCardService {
     }
 
     @Override
+    public List<RateCardDTO> getRateCardsByCarrierAndRoute(Integer carrierId, Integer routeId) {
+        return rateCardRepository.findByCarrier_CarrierIdAndRoute_RouteId(carrierId, routeId)
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public RateCardDTO getById(Integer id) {
         return toDTO(findEntity(id));
     }

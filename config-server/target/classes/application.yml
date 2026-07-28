@@ -10,7 +10,7 @@ spring:
     config:
       server:
         native:
-          search-locations: file:///C:/Users/2507291/Downloads/microservices_migration bd/microservices_migration/config-repo
+         search-locations: C:/Users/2507326/OneDrive - Cognizant/Desktop/LogiTrack MicroService/LOGI-TRACK-MICRO-SERVICE/config-repo
 
 management:
   endpoints:
