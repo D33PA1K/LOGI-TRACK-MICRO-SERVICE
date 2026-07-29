@@ -13,4 +13,5 @@ public interface ComplianceFlagRepository extends JpaRepository<ComplianceFlag, 
     List<ComplianceFlag> findByShipmentId(Integer shipmentId);
     List<ComplianceFlag> findByStatus(FlagStatus status);
     List<ComplianceFlag> findBySeverity(FlagSeverity severity);
+    List<ComplianceFlag> findByShipmentIdAndStatus(Integer shipmentId, FlagStatus status);
 }

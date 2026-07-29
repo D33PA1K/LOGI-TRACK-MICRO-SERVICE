@@ -1,6 +1,7 @@
 package com.cognizant.logitrack.service;
 
 import com.cognizant.logitrack.dto.ComplianceFlagDTO;
+import com.cognizant.logitrack.enums.FlagStatus;
 import java.util.List;
 
 public interface ComplianceFlagService {
@@ -10,4 +11,6 @@ public interface ComplianceFlagService {
     List<ComplianceFlagDTO> getOpenFlags();
     ComplianceFlagDTO getById(Integer id);
 	List<ComplianceFlagDTO> getResolvedFlags();
+    List<ComplianceFlagDTO> getFlagsByStatus(FlagStatus status);
+    List<ComplianceFlagDTO> getFlagsByShipmentAndStatus(Integer shipmentId, FlagStatus status);
 }

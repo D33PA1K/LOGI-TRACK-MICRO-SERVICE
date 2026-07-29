@@ -61,6 +61,16 @@ public class ComplianceFlagServiceImpl implements ComplianceFlagService {
 	public List<ComplianceFlagDTO> getResolvedFlags() {
 		return flagRepository.findByStatus(FlagStatus.RESOLVED).stream().map(this::toDTO).collect(Collectors.toList());
 	}
+
+    @Override
+    public List<ComplianceFlagDTO> getFlagsByStatus(FlagStatus status) {
+        return flagRepository.findByStatus(status).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ComplianceFlagDTO> getFlagsByShipmentAndStatus(Integer shipmentId, FlagStatus status) {
+        return flagRepository.findByShipmentIdAndStatus(shipmentId, status).stream().map(this::toDTO).collect(Collectors.toList());
+    }
  
     @Override
     public ComplianceFlagDTO getById(Integer id) {

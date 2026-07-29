@@ -73,6 +73,11 @@ public class PickListServiceImpl implements PickListService {
         PickList pickList = findEntity(id);
         pickList.setStatus(status);
         PickList saved = pickListRepository.save(pickList);
+
+        sendNotification(saved.getAssignedTo(),
+                "Pick list #" + id + " is now " + status,
+                NotificationCategory.WAREHOUSE);
+
         return toDTO(saved);
     }
 

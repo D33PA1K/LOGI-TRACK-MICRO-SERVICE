@@ -48,6 +48,11 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     @Override
+    public List<PurchaseOrderDTO> getPOsBySupplierAndWarehouse(Integer supplierId, Integer warehouseId) {
+        return purchaseOrderRepository.findBySupplier_SupplierIdAndWarehouseId(supplierId, warehouseId).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Override
     public PurchaseOrderDTO updatePOStatus(Integer id, POStatus status) {
         PurchaseOrder po = findEntity(id);
         po.setStatus(status);

@@ -1,6 +1,7 @@
 package com.cognizant.logitrack.controller;
 
 import com.cognizant.logitrack.dto.ComplianceFlagDTO;
+import com.cognizant.logitrack.enums.FlagStatus;
 import com.cognizant.logitrack.service.ComplianceFlagService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -27,11 +28,18 @@ public class ComplianceFlagController {
     @GetMapping
     public ResponseEntity<List<ComplianceFlagDTO>> get(@RequestParam(required = false) Integer shipmentId,
                                                        @RequestParam(required = false) String status) {
+        FlagStatus parsedStatus = (status != null && !status.isBlank())
+                ? FlagStatus.valueOf(status.toUpperCase())
+                : null;
+
+        if (shipmentId != null && parsedStatus != null) {
+            return ResponseEntity.ok(flagService.getFlagsByShipmentAndStatus(shipmentId, parsedStatus));
+        }
         if (shipmentId != null) {
             return ResponseEntity.ok(flagService.getFlagsByShipment(shipmentId));
         }
-        if (status != null && status.equalsIgnoreCase("OPEN")) {
-            return ResponseEntity.ok(flagService.getOpenFlags());
+        if (parsedStatus != null) {
+            return ResponseEntity.ok(flagService.getFlagsByStatus(parsedStatus));
         }
         return ResponseEntity.ok(flagService.getOpenFlags());
     }

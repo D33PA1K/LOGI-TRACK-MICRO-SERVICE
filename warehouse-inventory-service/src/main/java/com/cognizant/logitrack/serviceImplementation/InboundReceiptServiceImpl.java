@@ -1,12 +1,15 @@
 package com.cognizant.logitrack.serviceImplementation;
 
 import com.cognizant.logitrack.service.InboundReceiptService;
+import com.cognizant.logitrack.client.NotificationClient;
 import com.cognizant.logitrack.client.PurchaseOrderClient;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
 import com.cognizant.logitrack.dto.InboundReceiptDTO;
+import com.cognizant.logitrack.dto.NotificationDTO;
 import com.cognizant.logitrack.dto.PurchaseOrderDTO;
 import com.cognizant.logitrack.entity.InboundReceipt;
 import com.cognizant.logitrack.entity.WarehouseInventory;
+import com.cognizant.logitrack.enums.NotificationCategory;
 import com.cognizant.logitrack.enums.ReceiptStatus;
 import com.cognizant.logitrack.repository.InboundReceiptRepository;
 import com.cognizant.logitrack.repository.WarehouseInventoryRepository;
@@ -21,14 +24,28 @@ public class InboundReceiptServiceImpl implements InboundReceiptService {
     private final InboundReceiptRepository inboundReceiptRepository;
     private final PurchaseOrderClient purchaseOrderClient;
     private final WarehouseInventoryRepository warehouseInventoryRepository;
+    private final NotificationClient notificationClient;
 
     public InboundReceiptServiceImpl(
             InboundReceiptRepository inboundReceiptRepository,
             PurchaseOrderClient purchaseOrderClient,
-            WarehouseInventoryRepository warehouseInventoryRepository) {
+            WarehouseInventoryRepository warehouseInventoryRepository,
+            NotificationClient notificationClient) {
         this.inboundReceiptRepository = inboundReceiptRepository;
         this.purchaseOrderClient = purchaseOrderClient;
         this.warehouseInventoryRepository = warehouseInventoryRepository;
+        this.notificationClient = notificationClient;
+    }
+
+    // Best-effort notification; never fails the main transaction.
+    private void sendNotification(Integer userId, String message, NotificationCategory category) {
+        if (userId == null) return;
+        try {
+            notificationClient.sendNotification(
+                    NotificationDTO.builder().userId(userId).message(message).category(category).build());
+        } catch (Exception e) {
+            log.warn("Failed to send notification to user {}: {}", userId, e.getMessage());
+        }
     }
 
     @Override
@@ -49,6 +66,12 @@ public class InboundReceiptServiceImpl implements InboundReceiptService {
         ReceiptStatus previousStatus = receipt.getStatus();
         receipt.setStatus(status);
         InboundReceipt saved = inboundReceiptRepository.save(receipt);
+
+        if (previousStatus != status) {
+            sendNotification(saved.getReceivedBy(),
+                    "Inbound receipt #" + id + " is now " + status,
+                    NotificationCategory.WAREHOUSE);
+        }
 
         if (status == ReceiptStatus.RECEIVED && previousStatus != ReceiptStatus.RECEIVED) {
             try {

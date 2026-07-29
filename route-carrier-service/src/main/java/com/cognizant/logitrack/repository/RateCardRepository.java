@@ -18,6 +18,8 @@ public interface RateCardRepository extends JpaRepository<RateCard, Integer> {
 
     List<RateCard> findByRoute_RouteId(Integer routeId);
 
+    List<RateCard> findByCarrier_CarrierIdAndRoute_RouteId(Integer carrierId, Integer routeId);
+
     List<RateCard> findByStatus(RateCardStatus status);
 
     boolean existsByCarrier_CarrierIdAndRoute_RouteIdAndStatus(

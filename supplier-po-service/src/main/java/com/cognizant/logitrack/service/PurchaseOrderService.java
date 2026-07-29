@@ -8,6 +8,7 @@ public interface PurchaseOrderService {
     PurchaseOrderDTO createPO(PurchaseOrderDTO dto);
     List<PurchaseOrderDTO> getPOsBySupplier(Integer supplierId);
     List<PurchaseOrderDTO> getPOsByWarehouse(Integer warehouseId);
+    List<PurchaseOrderDTO> getPOsBySupplierAndWarehouse(Integer supplierId, Integer warehouseId);
     PurchaseOrderDTO updatePOStatus(Integer id, POStatus status);
     PurchaseOrderDTO getById(Integer id);
 }

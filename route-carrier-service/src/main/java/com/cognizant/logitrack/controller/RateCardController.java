@@ -28,6 +28,9 @@ public class RateCardController {
     @GetMapping
     public ResponseEntity<List<RateCardDTO>> get(@RequestParam(required = false) Integer carrierId,
                                                  @RequestParam(required = false) Integer routeId) {
+        if (carrierId != null && routeId != null) {
+            return ResponseEntity.ok(rateCardService.getRateCardsByCarrierAndRoute(carrierId, routeId));
+        }
         if (carrierId != null) {
             return ResponseEntity.ok(rateCardService.getRateCardsByCarrier(carrierId));
         }

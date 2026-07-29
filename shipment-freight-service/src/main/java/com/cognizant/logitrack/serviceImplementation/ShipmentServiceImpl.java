@@ -223,13 +223,20 @@ public class ShipmentServiceImpl implements ShipmentService {
             if (shipment.getFreightOrder() != null) {
                 shipment.getFreightOrder().setStatus(FreightOrderStatus.DELIVERED);
                 freightOrderRepository.save(shipment.getFreightOrder());
-                sendNotification(shipment.getFreightOrder().getShipperId(), "Shipment delivered", NotificationCategory.SHIPMENT);
+                sendNotification(shipment.getFreightOrder().getShipperId(),
+                        "Shipment #" + id + " was delivered", NotificationCategory.SHIPMENT);
             }
+            sendNotification(shipment.getDriverId(),
+                    "Shipment #" + id + " marked delivered", NotificationCategory.SHIPMENT);
         }
 
         if ((status == ShipmentStatus.DELAYED || status == ShipmentStatus.EXCEPTION)
-                && shipment.getFreightOrder() != null) {
-            sendNotification(shipment.getFreightOrder().getShipperId(), "Shipment delayed/exception", NotificationCategory.SHIPMENT);
+                && previous != status) {
+            String message = "Shipment #" + id + " is now " + status;
+            if (shipment.getFreightOrder() != null) {
+                sendNotification(shipment.getFreightOrder().getShipperId(), message, NotificationCategory.SHIPMENT);
+            }
+            sendNotification(shipment.getDriverId(), message, NotificationCategory.SHIPMENT);
         }
 
         Shipment saved = shipmentRepository.save(shipment);
@@ -245,7 +252,17 @@ public class ShipmentServiceImpl implements ShipmentService {
                 .locationId(dto.getLocationId())
                 .notes(dto.getNotes())
                 .build();
-        return toEventDTO(deliveryEventRepository.save(event));
+        DeliveryEvent savedEvent = deliveryEventRepository.save(event);
+
+        // Notify the shipper and the assigned driver about the delivery update.
+        String message = "Delivery update: " + dto.getEventType()
+                + " recorded for shipment #" + shipmentId;
+        if (shipment.getFreightOrder() != null) {
+            sendNotification(shipment.getFreightOrder().getShipperId(), message, NotificationCategory.SHIPMENT);
+        }
+        sendNotification(shipment.getDriverId(), message, NotificationCategory.SHIPMENT);
+
+        return toEventDTO(savedEvent);
     }
 
     @Override

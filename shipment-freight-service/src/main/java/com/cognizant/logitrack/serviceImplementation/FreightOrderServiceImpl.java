@@ -6,10 +6,13 @@ import com.cognizant.logitrack.service.FreightOrderService;
 import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
 import com.cognizant.logitrack.dto.FreightOrderDTO;
+import com.cognizant.logitrack.dto.NotificationDTO;
 import com.cognizant.logitrack.entity.FreightOrder;
 import com.cognizant.logitrack.enums.FreightOrderStatus;
+import com.cognizant.logitrack.enums.NotificationCategory;
 import com.cognizant.logitrack.repository.FreightOrderRepository;
 import com.cognizant.logitrack.client.IdentityClient;
+import com.cognizant.logitrack.client.NotificationClient;
 import com.cognizant.logitrack.client.PurchaseOrderClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,15 +31,29 @@ public class FreightOrderServiceImpl implements FreightOrderService {
     private final RouteClient routeClient;
     private final IdentityClient identityClient;
     private final PurchaseOrderClient purchaseOrderClient;
+    private final NotificationClient notificationClient;
 
     public FreightOrderServiceImpl(
             FreightOrderRepository freightOrderRepository,
-            RouteClient routeClient, IdentityClient identityClient, PurchaseOrderClient purchaseOrderClient
+            RouteClient routeClient, IdentityClient identityClient, PurchaseOrderClient purchaseOrderClient,
+            NotificationClient notificationClient
     ) {
         this.freightOrderRepository = freightOrderRepository;
         this.routeClient = routeClient;
         this.identityClient = identityClient;
         this.purchaseOrderClient = purchaseOrderClient;
+        this.notificationClient = notificationClient;
+    }
+
+    // Best-effort notification; never fails the main transaction.
+    private void sendNotification(Integer userId, String message, NotificationCategory category) {
+        if (userId == null) return;
+        try {
+            notificationClient.sendNotification(
+                    NotificationDTO.builder().userId(userId).message(message).category(category).build());
+        } catch (Exception e) {
+            log.warn("Failed to send notification to user {}: {}", userId, e.getMessage());
+        }
     }
 
     @Override
@@ -113,6 +130,10 @@ public class FreightOrderServiceImpl implements FreightOrderService {
                 saved.getFreightOrderId(),
                 route.getRouteId());
 
+        sendNotification(saved.getShipperId(),
+                "Freight order #" + saved.getFreightOrderId() + " was booked",
+                NotificationCategory.SHIPMENT);
+
         return toDTO(saved);
     }
 
@@ -143,6 +164,9 @@ public class FreightOrderServiceImpl implements FreightOrderService {
         order.setStatus(status);
         FreightOrder saved = freightOrderRepository.save(order);
         log.info("Freight order {} status updated to {}", id, status);
+        sendNotification(saved.getShipperId(),
+                "Freight order #" + id + " is now " + status,
+                NotificationCategory.SHIPMENT);
         return toDTO(saved);
     }
 
@@ -158,6 +182,10 @@ public class FreightOrderServiceImpl implements FreightOrderService {
         FreightOrder saved = freightOrderRepository.save(order);
 
         log.info("Freight order {} cancelled", id);
+
+        sendNotification(saved.getShipperId(),
+                "Freight order #" + id + " was cancelled",
+                NotificationCategory.SHIPMENT);
 
         return toDTO(saved);
     }

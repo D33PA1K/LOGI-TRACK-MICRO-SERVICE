@@ -28,6 +28,9 @@ public class PurchaseOrderController {
     @GetMapping
     public ResponseEntity<List<PurchaseOrderDTO>> get(@RequestParam(required = false) Integer supplierId,
                                                       @RequestParam(required = false) Integer warehouseId) {
+        if (supplierId != null && warehouseId != null) {
+            return ResponseEntity.ok(purchaseOrderService.getPOsBySupplierAndWarehouse(supplierId, warehouseId));
+        }
         if (supplierId != null) {
             return ResponseEntity.ok(purchaseOrderService.getPOsBySupplier(supplierId));
         }
