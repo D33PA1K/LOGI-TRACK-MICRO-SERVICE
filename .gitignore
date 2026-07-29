@@ -1,0 +1,21 @@
+# Maven build output (never commit compiled artifacts)
+target/
+**/target/
+
+# Compiled class files
+*.class
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Optional: Eclipse/STS metadata is regenerated on import.
+# These are currently tracked; leave them tracked unless the team decides
+# otherwise. Uncomment to stop tracking them:
+# .classpath
+# .project
+# .settings/
+# .factorypath

@@ -1,5 +1,0 @@
-spring:
-  application:
-    name: logistics-analytics-service
-  config:
-    import: configserver:http://localhost:8888
