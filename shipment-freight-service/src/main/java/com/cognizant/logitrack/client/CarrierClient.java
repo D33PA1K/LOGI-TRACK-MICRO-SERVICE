@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "route-carrier-service", contextId = "CarrierClient", path = "/api/carriers")
+@FeignClient(name = "route-carrier-service", contextId = "CarrierClient", path = "/api/carriers", fallbackFactory = CarrierClientFallbackFactory.class)
 public interface CarrierClient {
     @GetMapping("/{id}")
     CarrierDTO getCarrierById(@PathVariable("id") Integer id);

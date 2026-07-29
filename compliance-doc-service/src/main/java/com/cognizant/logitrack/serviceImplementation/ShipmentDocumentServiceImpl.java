@@ -3,6 +3,7 @@ package com.cognizant.logitrack.serviceImplementation;
 import com.cognizant.logitrack.service.ShipmentDocumentService;
 import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
+import com.cognizant.logitrack.exception.ServiceUnavailableException;
 import com.cognizant.logitrack.dto.ShipmentDocumentDTO;
 import com.cognizant.logitrack.entity.ShipmentDocument;
 import com.cognizant.logitrack.enums.DocumentStatus;
@@ -86,7 +87,8 @@ public class ShipmentDocumentServiceImpl implements ShipmentDocumentService {
             if (shipment == null) {
                 throw new BadRequestException("Shipment does not exist");
             }
-        } catch (BadRequestException e) {
+        } catch (BadRequestException | ServiceUnavailableException e) {
+            // Preserve the fallback's specific meaning: 400 "not found" or 503 "unavailable".
             throw e;
         } catch (Exception e) {
             throw new BadRequestException("Invalid or unavailable shipmentId: " + shipmentId);

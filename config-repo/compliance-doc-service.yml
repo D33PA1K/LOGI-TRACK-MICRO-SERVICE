@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: compliance-doc-service
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
   servlet:
     multipart:
       enabled: true

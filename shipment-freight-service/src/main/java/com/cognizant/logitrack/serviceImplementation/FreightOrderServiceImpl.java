@@ -75,32 +75,25 @@ public class FreightOrderServiceImpl implements FreightOrderService {
             throw new BadRequestException("Required delivery date cannot be in the past or current date");
         }
 
-                try {
-            Object shipper = identityClient.getUserById(dto.getShipperId());
-            if (shipper == null) throw new BadRequestException("Shipper does not exist");
-        } catch (Exception e) {
-            throw new BadRequestException("Invalid or unavailable shipperId: " + dto.getShipperId());
+        // Downstream failures surface their own message via the Feign fallbacks
+        // (503 "<service> unavailable" vs 400 "<entity> not found").
+        Object shipper = identityClient.getUserById(dto.getShipperId());
+        if (shipper == null) {
+            throw new BadRequestException("Shipper does not exist: " + dto.getShipperId());
         }
 
         if (dto.getPoId() != null) {
-            try {
-                Object po = purchaseOrderClient.getPurchaseOrderById(dto.getPoId());
-                if (po == null) throw new BadRequestException("Purchase Order does not exist");
-            } catch (Exception e) {
-                throw new BadRequestException("Invalid or unavailable poId: " + dto.getPoId());
+            Object po = purchaseOrderClient.getPurchaseOrderById(dto.getPoId());
+            if (po == null) {
+                throw new BadRequestException("Purchase order does not exist: " + dto.getPoId());
             }
         }
-        
-        RouteDTO route = null;
-        try {
-            route = routeClient.searchRoute(
-                    dto.getOriginLocationId(),
-                    dto.getDestinationLocationId(),
-                    "ACTIVE"
-            );
-        } catch (Exception e) {
-            log.warn("Failed to find active route: {}", e.getMessage());
-        }
+
+        RouteDTO route = routeClient.searchRoute(
+                dto.getOriginLocationId(),
+                dto.getDestinationLocationId(),
+                "ACTIVE"
+        );
 
         if (route == null) {
             throw new BadRequestException(

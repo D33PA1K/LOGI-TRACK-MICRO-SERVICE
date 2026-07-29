@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import java.util.List;
 
-@FeignClient(name = "compliance-doc-service", contextId = "ShipmentDocumentClient", path = "/api/shipment-documents")
+@FeignClient(name = "compliance-doc-service", contextId = "ShipmentDocumentClient", path = "/api/shipment-documents", fallbackFactory = ShipmentDocumentClientFallbackFactory.class)
 public interface ShipmentDocumentClient {
     @GetMapping("/shipment/{shipmentId}")
     List<ShipmentDocumentDTO> getByShipment(@PathVariable("shipmentId") Integer shipmentId);

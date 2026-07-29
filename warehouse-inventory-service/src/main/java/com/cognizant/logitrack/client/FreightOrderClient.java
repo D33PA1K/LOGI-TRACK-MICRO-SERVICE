@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "shipment-freight-service", contextId = "warehouseFreightOrderClient", path = "/api/freight-orders")
+@FeignClient(name = "shipment-freight-service", contextId = "warehouseFreightOrderClient", path = "/api/freight-orders", fallbackFactory = FreightOrderClientFallbackFactory.class)
 public interface FreightOrderClient {
     @GetMapping("/{id}")
     Object getFreightOrderById(@PathVariable("id") Integer id);
