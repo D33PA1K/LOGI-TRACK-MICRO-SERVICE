@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface RateCardService {
     RateCardDTO addRateCard(RateCardDTO dto);
+    List<RateCardDTO> getAllRateCards();
     List<RateCardDTO> getRateCardsByCarrier(Integer carrierId);
     List<RateCardDTO> getRateCardsByRoute(Integer routeId);
     List<RateCardDTO> getRateCardsByCarrierAndRoute(Integer carrierId, Integer routeId);

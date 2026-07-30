@@ -39,7 +39,9 @@ public class RateCardController {
         if (routeId != null) {
             return ResponseEntity.ok(rateCardService.getRateCardsByRoute(routeId));
         }
-        return ResponseEntity.ok(List.of());
+        // No filters supplied: return every rate card so the UI can show the full
+        // list by default (and reset back to it after a filtered search).
+        return ResponseEntity.ok(rateCardService.getAllRateCards());
     }
 
     @GetMapping("/{id}")

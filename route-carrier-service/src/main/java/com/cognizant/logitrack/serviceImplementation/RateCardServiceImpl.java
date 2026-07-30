@@ -140,6 +140,14 @@ public class RateCardServiceImpl implements RateCardService {
     }
 
     @Override
+    public List<RateCardDTO> getAllRateCards() {
+        return rateCardRepository.findAll()
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<RateCardDTO> getRateCardsByCarrier(Integer carrierId) {
         return rateCardRepository.findByCarrier_CarrierId(carrierId)
                 .stream()
