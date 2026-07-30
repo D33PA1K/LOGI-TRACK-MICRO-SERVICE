@@ -52,7 +52,7 @@ public class AuthController {
         if (user.getStatus() != com.cognizant.logitrack.enums.UserStatus.ACTIVE) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "User account is inactive. Please contact your administrator."));
         }
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), user.getUserId());
         LoginResponseDTO response = LoginResponseDTO.builder().token(token).role(user.getRole().name()).userId(user.getUserId()).name(user.getName()).build();
         log.info("User logged in: {}", user.getEmail());
         try {

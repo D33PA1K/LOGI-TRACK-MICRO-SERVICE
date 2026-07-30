@@ -14,6 +14,7 @@ import com.cognizant.logitrack.repository.FreightOrderRepository;
 import com.cognizant.logitrack.client.IdentityClient;
 import com.cognizant.logitrack.client.NotificationClient;
 import com.cognizant.logitrack.client.PurchaseOrderClient;
+import com.cognizant.logitrack.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -32,17 +33,19 @@ public class FreightOrderServiceImpl implements FreightOrderService {
     private final IdentityClient identityClient;
     private final PurchaseOrderClient purchaseOrderClient;
     private final NotificationClient notificationClient;
+    private final CurrentUserProvider currentUserProvider;
 
     public FreightOrderServiceImpl(
             FreightOrderRepository freightOrderRepository,
             RouteClient routeClient, IdentityClient identityClient, PurchaseOrderClient purchaseOrderClient,
-            NotificationClient notificationClient
+            NotificationClient notificationClient, CurrentUserProvider currentUserProvider
     ) {
         this.freightOrderRepository = freightOrderRepository;
         this.routeClient = routeClient;
         this.identityClient = identityClient;
         this.purchaseOrderClient = purchaseOrderClient;
         this.notificationClient = notificationClient;
+        this.currentUserProvider = currentUserProvider;
     }
 
     // Best-effort notification; never fails the main transaction.
@@ -58,6 +61,23 @@ public class FreightOrderServiceImpl implements FreightOrderService {
 
     @Override
     public FreightOrderDTO createFreightOrder(FreightOrderDTO dto) {
+
+        // Server-side ownership rule: a SHIPPER can only create orders for
+        // themselves, so we override any shipperId in the body with their own
+        // id taken from the JWT. ADMIN/COORDINATOR may assign to the shipper
+        // named in the request body.
+        if (currentUserProvider.hasRole("SHIPPER")) {
+            Integer currentUserId = currentUserProvider.getCurrentUserId();
+            if (currentUserId == null) {
+                throw new BadRequestException(
+                        "Could not determine your account from the session. Please sign in again.");
+            }
+            dto.setShipperId(currentUserId);
+        }
+
+        if (dto.getShipperId() == null) {
+            throw new BadRequestException("A shipperId is required.");
+        }
 
         if (dto.getOriginLocationId().equals(dto.getDestinationLocationId())) {
             throw new BadRequestException("Origin location and destination location cannot be same");
@@ -75,12 +95,11 @@ public class FreightOrderServiceImpl implements FreightOrderService {
             throw new BadRequestException("Required delivery date cannot be in the past or current date");
         }
 
-        // Downstream failures surface their own message via the Feign fallbacks
-        // (503 "<service> unavailable" vs 400 "<entity> not found").
-        Object shipper = identityClient.getUserById(dto.getShipperId());
-        if (shipper == null) {
-            throw new BadRequestException("Shipper does not exist: " + dto.getShipperId());
-        }
+        // The shipper is the authenticated caller: the frontend assigns a
+        // shipper's own id automatically, and POST /api/freight-orders is
+        // restricted to SHIPPER/COORDINATOR/ADMIN. We therefore do NOT re-fetch
+        // the user from the ADMIN-only identity endpoint (that lookup returned
+        // 403 for a shipper and blocked them from creating their own order).
 
         if (dto.getPoId() != null) {
             Object po = purchaseOrderClient.getPurchaseOrderById(dto.getPoId());

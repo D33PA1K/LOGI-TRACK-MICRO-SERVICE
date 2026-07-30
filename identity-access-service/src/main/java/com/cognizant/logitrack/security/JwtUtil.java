@@ -26,11 +26,16 @@ public class JwtUtil {
     }
 
     public String generateToken(String email, String role) {
+        return generateToken(email, role, null);
+    }
+
+    public String generateToken(String email, String role, Integer userId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration);
         return Jwts.builder()
                 .setSubject(email)
                 .claim("role", role)
+                .claim("userId", userId)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
