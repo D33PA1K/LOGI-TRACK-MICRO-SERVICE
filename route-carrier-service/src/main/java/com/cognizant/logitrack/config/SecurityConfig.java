@@ -34,7 +34,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/api/routes/**", "/api/carriers/**", "/api/rate-cards/**").hasAnyRole("COORDINATOR", "ADMIN")
+                        // Shippers need to look up an active route when booking a freight order,
+                        // so GET on routes is open to SHIPPER as well (carriers/rate-cards stay COORDINATOR/ADMIN).
+                        .requestMatchers(HttpMethod.GET, "/api/routes/**").hasAnyRole("SHIPPER", "COORDINATOR", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/carriers/**", "/api/rate-cards/**").hasAnyRole("COORDINATOR", "ADMIN")
                         .requestMatchers("/api/routes/**", "/api/carriers/**", "/api/rate-cards/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

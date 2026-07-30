@@ -4,6 +4,7 @@ import com.cognizant.logitrack.service.ShipmentService;
 import com.cognizant.logitrack.client.*;
 import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
+import com.cognizant.logitrack.exception.ServiceUnavailableException;
 import com.cognizant.logitrack.dto.*;
 import com.cognizant.logitrack.entity.DeliveryEvent;
 import com.cognizant.logitrack.entity.FreightOrder;
@@ -85,13 +86,12 @@ public class ShipmentServiceImpl implements ShipmentService {
         
         RouteDTO route = routeClient.getRouteById(freightOrder.getRouteId());
 
-        CarrierDTO carrier = null;
-        try {
-            carrier = carrierClient.getCarrierById(dto.getCarrierId());
-        } catch (Exception e) {
+        // A downstream failure surfaces its own message via the Feign fallback
+        // (503 "Carrier service unavailable" vs 400 "Carrier #x not found").
+        CarrierDTO carrier = carrierClient.getCarrierById(dto.getCarrierId());
+        if (carrier == null) {
             throw new BadRequestException("Carrier not found: " + dto.getCarrierId());
         }
-
         if (carrier.getStatus() != CarrierStatus.ACTIVE) {
             throw new BadRequestException("Carrier is not active: " + dto.getCarrierId());
         }
@@ -101,10 +101,8 @@ public class ShipmentServiceImpl implements ShipmentService {
         // In a real microservice, we would pass query params to rateCardClient, but for now we assume 
         // rateCardId is either passed in DTO or we fetch it. We'll simplify to fetch by ID if passed, or just mock.
         // Assuming dto has rateCardId
-        RateCardDTO rateCard = null;
-        try {
-            rateCard = rateCardClient.getRateCardById(dto.getRateCardId());
-        } catch (Exception e) {
+        RateCardDTO rateCard = rateCardClient.getRateCardById(dto.getRateCardId());
+        if (rateCard == null) {
             throw new BadRequestException("Rate card not found for ID: " + dto.getRateCardId());
         }
 
@@ -148,6 +146,8 @@ public class ShipmentServiceImpl implements ShipmentService {
         try {
             List<PickListDTO> pickLists = pickListClient.getByFreightOrder(freightOrder.getFreightOrderId());
             pickListCompleted = pickLists.stream().anyMatch(pl -> pl.getStatus() == PickListStatus.COMPLETED);
+        } catch (ServiceUnavailableException e) {
+            throw e;
         } catch(Exception e) {
             log.warn("Could not reach WMS for PickList validation", e);
         }
@@ -161,7 +161,11 @@ public class ShipmentServiceImpl implements ShipmentService {
         try {
             List<ShipmentDocumentDTO> docs = shipmentDocumentClient.getByShipment(shipment.getShipmentId());
             hasBlockingDocs = docs.stream().anyMatch(doc -> doc.getStatus() == DocumentStatus.PENDING || doc.getStatus() == DocumentStatus.SUBMITTED);
-        } catch(Exception e) {}
+        } catch (ServiceUnavailableException e) {
+            throw e;
+        } catch(Exception e) {
+            log.warn("Could not reach documents service during dispatch", e);
+        }
 
         if (hasBlockingDocs) {
             throw new BadRequestException("Cannot dispatch: PENDING/SUBMITTED docs exist");
@@ -172,9 +176,13 @@ public class ShipmentServiceImpl implements ShipmentService {
             try {
                 CarrierDTO carrier = carrierClient.getCarrierById(shipment.getCarrierId());
                 if (carrier.getStatus() != CarrierStatus.ACTIVE) {
-                    throw new BadRequestException("Carrier is not active");
+                    throw new BadRequestException("Cannot dispatch: carrier is not active");
                 }
-            } catch(Exception e) {}
+            } catch (BadRequestException | ServiceUnavailableException e) {
+                throw e;
+            } catch(Exception e) {
+                log.warn("Could not verify carrier during dispatch", e);
+            }
         }
 
         // Gate 4: Compliance Flags
@@ -182,7 +190,11 @@ public class ShipmentServiceImpl implements ShipmentService {
         try {
             List<ComplianceFlagDTO> flags = complianceFlagClient.getByShipment(shipment.getShipmentId());
             hasOpenFlags = flags.stream().anyMatch(f -> f.getStatus() == FlagStatus.OPEN);
-        } catch(Exception e) {}
+        } catch (ServiceUnavailableException e) {
+            throw e;
+        } catch(Exception e) {
+            log.warn("Could not reach compliance service during dispatch", e);
+        }
 
         if (hasOpenFlags) {
             throw new BadRequestException("Cannot dispatch: OPEN compliance flags exist");

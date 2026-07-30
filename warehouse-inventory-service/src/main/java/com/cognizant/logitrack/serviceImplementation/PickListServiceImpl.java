@@ -32,15 +32,13 @@ public class PickListServiceImpl implements PickListService {
 
     @Override
     public PickListDTO createPickList(PickListDTO dto) {
-                try {
-            Object order = freightOrderClient.getFreightOrderById(dto.getFreightOrderId());
-            if (order == null) {
-                throw new BadRequestException("Freight order does not exist");
-            }
-        } catch (Exception e) {
-            throw new BadRequestException("Invalid or unavailable freightOrderId: " + dto.getFreightOrderId());
+        // A downstream failure surfaces its own message via the Feign fallback
+        // (503 "Shipment/freight service unavailable" vs 400 "Freight order #x not found").
+        Object order = freightOrderClient.getFreightOrderById(dto.getFreightOrderId());
+        if (order == null) {
+            throw new BadRequestException("Freight order does not exist: " + dto.getFreightOrderId());
         }
-        
+
         PickList pickList = PickList.builder()
                 .freightOrderId(dto.getFreightOrderId())
                 .warehouseId(dto.getWarehouseId())
