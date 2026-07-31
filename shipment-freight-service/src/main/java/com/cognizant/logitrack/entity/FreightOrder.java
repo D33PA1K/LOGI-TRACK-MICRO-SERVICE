@@ -2,6 +2,7 @@ package com.cognizant.logitrack.entity;
 
 import com.cognizant.logitrack.enums.FreightOrderStatus;
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
@@ -38,6 +39,12 @@ public class FreightOrder {
     private BigDecimal volume;
 
     private LocalDate requiredDeliveryDate;
+
+    // Automatically set to the current date when the freight order is first
+    // persisted; not updatable thereafter.
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDate dateOfCreation;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default

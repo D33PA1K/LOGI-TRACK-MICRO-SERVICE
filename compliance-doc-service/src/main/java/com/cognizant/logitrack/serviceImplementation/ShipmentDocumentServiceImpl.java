@@ -45,11 +45,13 @@ public class ShipmentDocumentServiceImpl implements ShipmentDocumentService {
     public ShipmentDocumentDTO uploadDocument(ShipmentDocumentDTO dto) {
         validateShipmentExists(dto.getShipmentId());
 
+        // The submitted date is always the current date; any client-supplied
+        // value is ignored so it cannot be back- or future-dated.
         ShipmentDocument document = ShipmentDocument.builder()
                 .shipmentId(dto.getShipmentId())
                 .documentType(dto.getDocumentType())
                 .filePath(dto.getFilePath())
-                .submittedDate(dto.getSubmittedDate())
+                .submittedDate(LocalDate.now())
                 .status(DocumentStatus.PENDING)
                 .build();
         ShipmentDocument saved = documentRepository.save(document);
@@ -67,11 +69,13 @@ public class ShipmentDocumentServiceImpl implements ShipmentDocumentService {
 
         String relativePath = storeFile(file);
 
+        // The submitted date is always the current date; the submittedDate
+        // request parameter is ignored so it cannot be back- or future-dated.
         ShipmentDocument document = ShipmentDocument.builder()
                 .shipmentId(shipmentId)
                 .documentType(documentType)
                 .filePath(relativePath)
-                .submittedDate(submittedDate)
+                .submittedDate(LocalDate.now())
                 .status(DocumentStatus.PENDING)
                 .build();
         ShipmentDocument saved = documentRepository.save(document);

@@ -236,6 +236,7 @@ public class FreightOrderServiceImpl implements FreightOrderService {
                 .weight(order.getWeight())
                 .volume(order.getVolume())
                 .requiredDeliveryDate(order.getRequiredDeliveryDate())
+                .dateOfCreation(order.getDateOfCreation())
                 .status(order.getStatus())
                 .build();
     }
