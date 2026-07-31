@@ -7,9 +7,11 @@ import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
 import com.cognizant.logitrack.dto.FreightOrderDTO;
 import com.cognizant.logitrack.dto.NotificationDTO;
+import com.cognizant.logitrack.dto.UserDTO;
 import com.cognizant.logitrack.entity.FreightOrder;
 import com.cognizant.logitrack.enums.FreightOrderStatus;
 import com.cognizant.logitrack.enums.NotificationCategory;
+import com.cognizant.logitrack.enums.Role;
 import com.cognizant.logitrack.repository.FreightOrderRepository;
 import com.cognizant.logitrack.client.IdentityClient;
 import com.cognizant.logitrack.client.NotificationClient;
@@ -73,10 +75,24 @@ public class FreightOrderServiceImpl implements FreightOrderService {
                         "Could not determine your account from the session. Please sign in again.");
             }
             dto.setShipperId(currentUserId);
-        }
-
-        if (dto.getShipperId() == null) {
-            throw new BadRequestException("A shipperId is required.");
+        } else {
+            // ADMIN/COORDINATOR is assigning the order to a shipper: the target
+            // must exist in the users table AND actually have the SHIPPER role.
+            if (dto.getShipperId() == null) {
+                throw new BadRequestException("A shipperId is required. Give a valid shipper ID.");
+            }
+            // Fetch the user from identity-access (users table). A missing user
+            // surfaces via the Feign fallback as a 400 "No user found ...".
+            UserDTO targetShipper = identityClient.getUserById(dto.getShipperId());
+            if (targetShipper == null) {
+                throw new BadRequestException(
+                        "No user found with id " + dto.getShipperId() + ". Give a valid shipper ID.");
+            }
+            if (targetShipper.getRole() != Role.SHIPPER) {
+                throw new BadRequestException(
+                        "User " + dto.getShipperId() + " has the role " + targetShipper.getRole()
+                                + ", not SHIPPER. Give a valid shipper ID.");
+            }
         }
 
         if (dto.getOriginLocationId().equals(dto.getDestinationLocationId())) {

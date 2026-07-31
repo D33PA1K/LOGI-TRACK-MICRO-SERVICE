@@ -19,3 +19,6 @@ Thumbs.db
 # .project
 # .settings/
 # .factorypath
+
+
+config-server/src/main/resources/application.yml

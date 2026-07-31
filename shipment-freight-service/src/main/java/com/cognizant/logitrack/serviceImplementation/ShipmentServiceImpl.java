@@ -39,6 +39,7 @@ public class ShipmentServiceImpl implements ShipmentService {
     private final ComplianceFlagClient complianceFlagClient;
     private final NotificationClient notificationClient;
     private final RouteClient routeClient;
+    private final IdentityClient identityClient;
 
     public ShipmentServiceImpl(
             ShipmentRepository shipmentRepository,
@@ -50,7 +51,8 @@ public class ShipmentServiceImpl implements ShipmentService {
             ShipmentDocumentClient shipmentDocumentClient,
             ComplianceFlagClient complianceFlagClient,
             NotificationClient notificationClient,
-            RouteClient routeClient
+            RouteClient routeClient,
+            IdentityClient identityClient
     ) {
         this.shipmentRepository = shipmentRepository;
         this.freightOrderRepository = freightOrderRepository;
@@ -62,6 +64,7 @@ public class ShipmentServiceImpl implements ShipmentService {
         this.complianceFlagClient = complianceFlagClient;
         this.notificationClient = notificationClient;
         this.routeClient = routeClient;
+        this.identityClient = identityClient;
     }
 
     @Override
@@ -104,6 +107,21 @@ public class ShipmentServiceImpl implements ShipmentService {
         RateCardDTO rateCard = rateCardClient.getRateCardById(dto.getRateCardId());
         if (rateCard == null) {
             throw new BadRequestException("Rate card not found for ID: " + dto.getRateCardId());
+        }
+
+        // If a driver is assigned, they must exist in the users table AND have
+        // the DRIVER role (mirrors the shipper validation on freight orders).
+        if (dto.getDriverId() != null) {
+            UserDTO driver = identityClient.getUserById(dto.getDriverId());
+            if (driver == null) {
+                throw new BadRequestException(
+                        "No user found with id " + dto.getDriverId() + ". Give a valid driver ID.");
+            }
+            if (driver.getRole() != Role.DRIVER) {
+                throw new BadRequestException(
+                        "User " + dto.getDriverId() + " has the role " + driver.getRole()
+                                + ", not DRIVER. Give a valid driver ID.");
+            }
         }
 
         validateWeightSlab(freightOrder.getWeight(), rateCard.getWeightSlab());
