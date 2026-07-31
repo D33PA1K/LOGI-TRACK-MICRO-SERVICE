@@ -42,5 +42,8 @@ public class FreightOrderDTO {
     @NotNull
     private LocalDate requiredDeliveryDate;
 
+    // Populated by the server on creation; read-only for clients.
+    private LocalDate dateOfCreation;
+
     private FreightOrderStatus status;
 }

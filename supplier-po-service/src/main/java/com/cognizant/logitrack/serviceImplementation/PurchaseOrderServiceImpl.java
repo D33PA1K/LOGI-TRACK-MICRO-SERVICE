@@ -11,6 +11,7 @@ import com.cognizant.logitrack.repository.PurchaseOrderRepository;
 import com.cognizant.logitrack.repository.SupplierRepository;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         if (supplier.getStatus() != com.cognizant.logitrack.enums.SupplierStatus.ACTIVE) {
             throw new BadRequestException("Cannot create purchase order for an inactive supplier: " + supplier.getName());
         }
-        PurchaseOrder po = PurchaseOrder.builder().supplier(supplier).warehouseId(dto.getWarehouseId()).lineItems(dto.getLineItems()).totalValue(dto.getTotalValue()).orderDate(dto.getOrderDate()).expectedDelivery(dto.getExpectedDelivery()).status(POStatus.DRAFT).build();
+        // The order date is always the current date; any client-supplied value
+        // is ignored so the PO cannot be back- or future-dated.
+        PurchaseOrder po = PurchaseOrder.builder().supplier(supplier).warehouseId(dto.getWarehouseId()).lineItems(dto.getLineItems()).totalValue(dto.getTotalValue()).orderDate(LocalDate.now()).expectedDelivery(dto.getExpectedDelivery()).status(POStatus.DRAFT).build();
         PurchaseOrder saved = purchaseOrderRepository.save(po);
         log.info("Purchase order created: id={}", saved.getPoId());
         return toDTO(saved);
