@@ -11,4 +11,5 @@ import java.util.List;
 public interface SupplierRepository extends JpaRepository<Supplier, Integer> {
     List<Supplier> findByStatus(SupplierStatus status);
     List<Supplier> findByCategory(String category);
+    List<Supplier> findByNameIgnoreCase(String name);
 }

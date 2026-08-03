@@ -1,6 +1,7 @@
 package com.cognizant.logitrack.serviceImplementation;
 
 import com.cognizant.logitrack.repository.PickListRepository;
+import com.cognizant.logitrack.repository.WarehouseRepository;
 import com.cognizant.logitrack.client.NotificationClient;
 import com.cognizant.logitrack.client.FreightOrderClient;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
@@ -22,6 +23,8 @@ public class PickListServiceImplTest {
     private NotificationClient notificationClient;
     @Mock
     private FreightOrderClient freightOrderClient;
+    @Mock
+    private WarehouseRepository warehouseRepository;
 
     @InjectMocks
     private PickListServiceImpl pickListService;

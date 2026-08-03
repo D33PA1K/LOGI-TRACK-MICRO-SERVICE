@@ -2,6 +2,8 @@
 
 > Part of the **Logi Track** logistics platform. Java 21, Spring Boot 3, Spring Cloud (Eureka + Config Server + Gateway), MySQL, JWT auth (HS256), REST. No message broker, no cache layer are used anywhere in this platform (confirmed by repo-wide search — deployment is manual/VM-style, no Docker/Kubernetes manifests found).
 
+> **Update:** Two gaps called out in the original review below have since been closed. (1) **Duplicate suppliers are now rejected** — `addSupplier` returns `400` when an incoming name+category+contact matches an existing supplier (case-insensitive, null-safe). (2) **`warehouseId` on a PO is now validated** — when supplied, `createPO` verifies the warehouse exists via a new `WarehouseClient` (Feign → warehouse-inventory-service) with a fallback factory; a missing warehouse → `400`, an unavailable warehouse service → `503`. OpenFeign/Resilience4j are therefore now actually used. Sections that still describe these as gaps are retained for historical context but annotated inline.
+
 ---
 
 ## A. Executive Summary
@@ -202,7 +204,7 @@ flowchart LR
 - **Controller → Service → Repository:** `SupplierController.addSupplier` → `SupplierServiceImpl.addSupplier` → `SupplierRepository.save`.
 - **DB tables affected:** `suppliers` (insert).
 - **Transaction:** single insert, implicit transaction via Spring Data.
-- **Idempotency:** not idempotent — repeated calls create duplicate suppliers (no unique constraint on `name`).
+- **Idempotency:** repeated calls with the same `name`+`category`+`contactDetails` are now rejected with `400` (application-level duplicate check, case-insensitive and null/blank-safe). Note there is still no DB-level unique constraint — the guard lives in `SupplierServiceImpl.addSupplier`.
 
 ```json
 // Sample request
@@ -228,8 +230,8 @@ Sets the supplier's status. **Bug:** an invalid `status` value throws an uncaugh
 ### `POST /api/purchase-orders`
 - **Purpose:** Raise a purchase order against an active supplier.
 - **Auth:** `ADMIN`/`COORDINATOR`.
-- **Request body (`PurchaseOrderDTO`):** `supplierId` (**required**, `@NotNull`), `warehouseId` (int, unvalidated), `lineItems` (free-text string, unvalidated — **not a structured line-item model**), `totalValue` (`BigDecimal`, unvalidated — can be negative/null), `orderDate`/`expectedDelivery` (dates, unvalidated, no ordering check), `status` (ignored on create).
-- **Business rule enforced:** referenced supplier must exist and be `ACTIVE`, else `400`.
+- **Request body (`PurchaseOrderDTO`):** `supplierId` (**required**, `@NotNull`), `warehouseId` (int, optional — **validated when present** against warehouse-inventory-service via `WarehouseClient`), `lineItems` (free-text string, unvalidated — **not a structured line-item model**), `totalValue` (`BigDecimal`, unvalidated — can be negative/null), `orderDate`/`expectedDelivery` (dates, unvalidated, no ordering check), `status` (ignored on create).
+- **Business rules enforced:** referenced supplier must exist and be `ACTIVE`, else `400`; if `warehouseId` is supplied it must reference an existing warehouse, else `400` (or `503` if the warehouse service is unreachable).
 - **Response:** `201`, body = created PO with `status = DRAFT`.
 - **DB tables affected:** `purchase_orders` (insert), reads `suppliers`.
 

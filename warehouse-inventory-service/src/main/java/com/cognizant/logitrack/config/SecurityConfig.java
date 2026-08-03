@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/warehouses/**").hasAnyRole("WAREHOUSEOPS", "COORDINATOR", "ADMIN")
                         .requestMatchers("/api/inventory/**").hasAnyRole("WAREHOUSEOPS", "ADMIN")
                         .requestMatchers("/api/inbound-receipts/**").hasAnyRole("WAREHOUSEOPS", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/pick-lists/assigned/**").hasAnyRole("WAREHOUSEOPS", "COORDINATOR", "ADMIN")

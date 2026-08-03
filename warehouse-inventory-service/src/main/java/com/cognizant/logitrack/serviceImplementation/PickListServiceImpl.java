@@ -9,6 +9,7 @@ import com.cognizant.logitrack.entity.PickList;
 import com.cognizant.logitrack.enums.NotificationCategory;
 import com.cognizant.logitrack.enums.PickListStatus;
 import com.cognizant.logitrack.repository.PickListRepository;
+import com.cognizant.logitrack.repository.WarehouseRepository;
 import com.cognizant.logitrack.client.FreightOrderClient;
 import com.cognizant.logitrack.exception.BadRequestException;
 import org.springframework.stereotype.Service;
@@ -23,11 +24,13 @@ public class PickListServiceImpl implements PickListService {
     private final PickListRepository pickListRepository;
     private final NotificationClient notificationClient;
     private final FreightOrderClient freightOrderClient;
+    private final WarehouseRepository warehouseRepository;
 
-    public PickListServiceImpl(PickListRepository pickListRepository, NotificationClient notificationClient, FreightOrderClient freightOrderClient) {
+    public PickListServiceImpl(PickListRepository pickListRepository, NotificationClient notificationClient, FreightOrderClient freightOrderClient, WarehouseRepository warehouseRepository) {
         this.pickListRepository = pickListRepository;
         this.notificationClient = notificationClient;
         this.freightOrderClient = freightOrderClient;
+        this.warehouseRepository = warehouseRepository;
     }
 
     @Override
@@ -37,6 +40,10 @@ public class PickListServiceImpl implements PickListService {
         Object order = freightOrderClient.getFreightOrderById(dto.getFreightOrderId());
         if (order == null) {
             throw new BadRequestException("Freight order does not exist: " + dto.getFreightOrderId());
+        }
+
+        if (!warehouseRepository.existsById(dto.getWarehouseId())) {
+            throw new BadRequestException("Warehouse does not exist: " + dto.getWarehouseId());
         }
 
         PickList pickList = PickList.builder()

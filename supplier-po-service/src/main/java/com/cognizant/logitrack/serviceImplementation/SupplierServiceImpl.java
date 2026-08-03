@@ -1,6 +1,7 @@
 package com.cognizant.logitrack.serviceImplementation;
 
 import com.cognizant.logitrack.service.SupplierService;
+import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
 import com.cognizant.logitrack.dto.SupplierDTO;
 import com.cognizant.logitrack.entity.Supplier;
@@ -22,10 +23,26 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     public SupplierDTO addSupplier(SupplierDTO dto) {
+        // A supplier is considered a duplicate when its name, category and contact
+        // details all match an existing record (case-insensitive, null-safe).
+        boolean duplicate = supplierRepository.findByNameIgnoreCase(dto.getName()).stream()
+                .anyMatch(existing -> equalsIgnoreCaseNullSafe(existing.getCategory(), dto.getCategory())
+                        || equalsIgnoreCaseNullSafe(existing.getContactDetails(), dto.getContactDetails()));
+        if (duplicate) {
+            throw new BadRequestException("A supplier with the same name, category and contact already exists: " + dto.getName());
+        }
         Supplier supplier = Supplier.builder().name(dto.getName()).category(dto.getCategory()).contactDetails(dto.getContactDetails()).leadTimeDays(dto.getLeadTimeDays()).status(SupplierStatus.ACTIVE).build();
         Supplier saved = supplierRepository.save(supplier);
         log.info("Supplier added: id={}, name={}", saved.getSupplierId(), saved.getName());
         return toDTO(saved);
+    }
+
+    // Treats null and blank as equivalent so an omitted category/contact does not
+    // slip past the duplicate check on a technicality.
+    private boolean equalsIgnoreCaseNullSafe(String a, String b) {
+        String left = (a == null) ? "" : a.trim();
+        String right = (b == null) ? "" : b.trim();
+        return left.equalsIgnoreCase(right);
     }
 
     @Override

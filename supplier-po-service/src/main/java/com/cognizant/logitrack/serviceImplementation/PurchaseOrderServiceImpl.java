@@ -1,6 +1,7 @@
 package com.cognizant.logitrack.serviceImplementation;
 
 import com.cognizant.logitrack.service.PurchaseOrderService;
+import com.cognizant.logitrack.client.WarehouseClient;
 import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
 import com.cognizant.logitrack.dto.PurchaseOrderDTO;
@@ -20,10 +21,12 @@ import java.util.stream.Collectors;
 public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final SupplierRepository supplierRepository;
+    private final WarehouseClient warehouseClient;
 
-    public PurchaseOrderServiceImpl(PurchaseOrderRepository purchaseOrderRepository, SupplierRepository supplierRepository) {
+    public PurchaseOrderServiceImpl(PurchaseOrderRepository purchaseOrderRepository, SupplierRepository supplierRepository, WarehouseClient warehouseClient) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.supplierRepository = supplierRepository;
+        this.warehouseClient = warehouseClient;
     }
 
     @Override
@@ -31,6 +34,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Supplier supplier = supplierRepository.findById(dto.getSupplierId()).orElseThrow(() -> new BadRequestException("Supplier not found: " + dto.getSupplierId()));
         if (supplier.getStatus() != com.cognizant.logitrack.enums.SupplierStatus.ACTIVE) {
             throw new BadRequestException("Cannot create purchase order for an inactive supplier: " + supplier.getName());
+        }
+        // warehouseId is optional on a PO, but when supplied it must reference a
+        // real warehouse. The warehouse service owns that data, so we verify it
+        // over Feign; a missing warehouse surfaces as 400 and an unavailable
+        // warehouse service as 503 via the client's fallback.
+        if (dto.getWarehouseId() != null) {
+            warehouseClient.getWarehouseById(dto.getWarehouseId());
         }
         // The order date is always the current date; any client-supplied value
         // is ignored so the PO cannot be back- or future-dated.

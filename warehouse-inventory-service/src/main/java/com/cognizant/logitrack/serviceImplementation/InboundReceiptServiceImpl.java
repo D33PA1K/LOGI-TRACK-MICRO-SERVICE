@@ -3,6 +3,7 @@ package com.cognizant.logitrack.serviceImplementation;
 import com.cognizant.logitrack.service.InboundReceiptService;
 import com.cognizant.logitrack.client.NotificationClient;
 import com.cognizant.logitrack.client.PurchaseOrderClient;
+import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
 import com.cognizant.logitrack.dto.InboundReceiptDTO;
 import com.cognizant.logitrack.dto.NotificationDTO;
@@ -13,6 +14,7 @@ import com.cognizant.logitrack.enums.NotificationCategory;
 import com.cognizant.logitrack.enums.ReceiptStatus;
 import com.cognizant.logitrack.repository.InboundReceiptRepository;
 import com.cognizant.logitrack.repository.WarehouseInventoryRepository;
+import com.cognizant.logitrack.repository.WarehouseRepository;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 import java.util.List;
@@ -24,16 +26,19 @@ public class InboundReceiptServiceImpl implements InboundReceiptService {
     private final InboundReceiptRepository inboundReceiptRepository;
     private final PurchaseOrderClient purchaseOrderClient;
     private final WarehouseInventoryRepository warehouseInventoryRepository;
+    private final WarehouseRepository warehouseRepository;
     private final NotificationClient notificationClient;
 
     public InboundReceiptServiceImpl(
             InboundReceiptRepository inboundReceiptRepository,
             PurchaseOrderClient purchaseOrderClient,
             WarehouseInventoryRepository warehouseInventoryRepository,
+            WarehouseRepository warehouseRepository,
             NotificationClient notificationClient) {
         this.inboundReceiptRepository = inboundReceiptRepository;
         this.purchaseOrderClient = purchaseOrderClient;
         this.warehouseInventoryRepository = warehouseInventoryRepository;
+        this.warehouseRepository = warehouseRepository;
         this.notificationClient = notificationClient;
     }
 
@@ -50,6 +55,9 @@ public class InboundReceiptServiceImpl implements InboundReceiptService {
 
     @Override
     public InboundReceiptDTO createReceipt(InboundReceiptDTO dto) {
+        if (!warehouseRepository.existsById(dto.getWarehouseId())) {
+            throw new BadRequestException("Warehouse does not exist: " + dto.getWarehouseId());
+        }
         InboundReceipt receipt = InboundReceipt.builder().supplierOrderId(dto.getSupplierOrderId()).warehouseId(dto.getWarehouseId()).receivedDate(dto.getReceivedDate()).receivedBy(dto.getReceivedBy()).status(ReceiptStatus.PENDING).build();
         InboundReceipt saved = inboundReceiptRepository.save(receipt);
         return toDTO(saved);

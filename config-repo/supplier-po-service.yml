@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: supplier-po-service
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
   datasource:
     url: jdbc:mysql://localhost:3306/logitrack_supplier_po_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
     username: root

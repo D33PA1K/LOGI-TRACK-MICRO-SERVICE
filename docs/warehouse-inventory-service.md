@@ -1,6 +1,8 @@
 # warehouse-inventory-service — Technical Documentation
 
-> Java 17, Spring Boot 3.2.3, MySQL, JWT-secured REST. Owns **Warehouse Inventory** (stock levels), **Inbound Receipts** (goods arriving from a PO), and **Pick Lists** (outbound picking work orders).
+> Java 17, Spring Boot 3.2.3, MySQL, JWT-secured REST. Owns **Warehouses** (physical stocking locations), **Warehouse Inventory** (stock levels), **Inbound Receipts** (goods arriving from a PO), and **Pick Lists** (outbound picking work orders).
+
+> **Update:** A `Warehouse` entity now backs the `warehouseId` used across the platform. It is read-only over the API (`GET /api/warehouses`, `GET /api/warehouses/{id}`) and seeded with 10 sample warehouses on first startup (`config/WarehouseSeeder`), since warehouse management itself is out of scope. `warehouseId` on inbound-receipt and pick-list creation is now validated to reference a real warehouse (400 if not), and `supplier-po-service` validates a PO's `warehouseId` against this service over Feign.
 
 ---
 
@@ -49,6 +51,8 @@
 ```
 warehouse-inventory-service/src/main/java/com/cognizant/logitrack/
 ├── entity/
+│   ├── Warehouse.java               # warehouseId(PK), warehouseName, addressLine, city, state, country,
+│   │                                 #  postalCode, contactNumber, status(WarehouseStatus ACTIVE default)
 │   ├── WarehouseInventory.java      # NO status field — sku, productName, warehouseId, binLocation,
 │   │                                 #  quantityOnHand, quantityReserved, lastUpdated (@UpdateTimestamp)
 │   ├── InboundReceipt.java          # supplierOrderId, warehouseId, receivedDate, receivedBy, status(PENDING default)
@@ -141,6 +145,9 @@ Standard platform pattern — see `infrastructure.md` §E. No service-specific s
 
 ## F. API Documentation
 
+### `GET /api/warehouses` / `GET /api/warehouses/{id}` — WAREHOUSEOPS/COORDINATOR/ADMIN
+Read-only list/lookup of seeded warehouses. Used by pickers/receivers and by `supplier-po-service` (over Feign) to validate a PO's `warehouseId`. `404` if the id does not exist. There are no create/update/delete endpoints — warehouse data is seeded (`WarehouseSeeder`, 10 rows, only when the table is empty).
+
 ### `GET /api/inventory?warehouseId=` / `GET /api/inventory/{id}` — WAREHOUSEOPS/ADMIN
 Plain reads, no filtering beyond warehouse.
 
@@ -151,7 +158,7 @@ Plain reads, no filtering beyond warehouse.
 Decrements `quantityReserved` only (assumes a prior reservation); guards `quantityReserved >= quantity` else `400 "Insufficient reserved stock to consume"`. Since `reserveStock` is never actually invoked from any endpoint, `quantityReserved` in practice can only be non-zero if set some other way (not observed in this module).
 
 ### `POST /api/inbound-receipts` — WAREHOUSEOPS/ADMIN
-`InboundReceiptDTO`: `supplierOrderId` `@NotNull`, `warehouseId` `@NotNull`. Forces `status=PENDING` on create (ignores DTO's status). `201`.
+`InboundReceiptDTO`: `supplierOrderId` `@NotNull`, `warehouseId` `@NotNull`. `warehouseId` must reference an existing warehouse (`400 "Warehouse does not exist: {id}"` otherwise). Forces `status=PENDING` on create (ignores DTO's status). `201`.
 
 ### `GET /api/inbound-receipts?warehouseId=`
 
@@ -166,7 +173,7 @@ See §D sequence diagram for the RECEIVED-transition auto-restock logic. **Bug:*
 ```
 
 ### `POST /api/pick-lists` — WAREHOUSEOPS/COORDINATOR/ADMIN
-`PickListDTO`: `freightOrderId` `@NotNull`, `warehouseId` `@NotNull`. Validates freight order exists via Feign (raw `Object` return, null-checked only). Forces `status=OPEN`.
+`PickListDTO`: `freightOrderId` `@NotNull`, `warehouseId` `@NotNull`. Validates freight order exists via Feign (raw `Object` return, null-checked only) and that `warehouseId` references an existing warehouse (`400 "Warehouse does not exist: {id}"` otherwise). Forces `status=OPEN`.
 
 ### `GET /api/pick-lists?warehouseId=` / `GET /api/pick-lists/assigned/{userId}` — WAREHOUSEOPS/COORDINATOR/ADMIN
 

@@ -43,7 +43,7 @@ spring:
         - id: warehouse-inventory-service
           uri: lb://warehouse-inventory-service
           predicates:
-            - Path=/api/inventory/**,/api/inbound-receipts/**,/api/pick-lists/**
+            - Path=/api/warehouses/**,/api/inventory/**,/api/inbound-receipts/**,/api/pick-lists/**
         - id: route-carrier-service
           uri: lb://route-carrier-service
           predicates:
