@@ -26,8 +26,10 @@ public class InboundReceiptController {
     }
 
     @GetMapping
-    public ResponseEntity<List<InboundReceiptDTO>> getByWarehouse(@RequestParam Integer warehouseId) {
-        return ResponseEntity.ok(inboundReceiptService.getByWarehouse(warehouseId));
+    public ResponseEntity<List<InboundReceiptDTO>> getByWarehouse(@RequestParam(required = false) Integer warehouseId) {
+        return ResponseEntity.ok(warehouseId == null
+                ? inboundReceiptService.getAllReceipts()
+                : inboundReceiptService.getByWarehouse(warehouseId));
     }
 
     @PatchMapping("/{id}/status")

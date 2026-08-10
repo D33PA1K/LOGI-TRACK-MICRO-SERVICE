@@ -7,5 +7,6 @@ import java.util.List;
 public interface InboundReceiptService {
     InboundReceiptDTO createReceipt(InboundReceiptDTO dto);
     List<InboundReceiptDTO> getByWarehouse(Integer warehouseId);
+    List<InboundReceiptDTO> getAllReceipts();
     InboundReceiptDTO updateStatus(Integer id, ReceiptStatus status);
 }

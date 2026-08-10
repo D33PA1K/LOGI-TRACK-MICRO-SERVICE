@@ -17,9 +17,17 @@ public class InventoryController {
         this.inventoryService = inventoryService;
     }
 
+    /**
+     * warehouseId is optional: omitting it returns every warehouse's stock, which
+     * is what the UI's "Any warehouse" option means. It used to be mandatory, so
+     * that option could never return anything.
+     */
     @GetMapping
-    public ResponseEntity<List<InventoryDTO>> getByWarehouse(@RequestParam Integer warehouseId) {
-        return ResponseEntity.ok(inventoryService.getInventoryByWarehouse(warehouseId));
+    public ResponseEntity<List<InventoryDTO>> getByWarehouse(
+            @RequestParam(required = false) Integer warehouseId) {
+        return ResponseEntity.ok(warehouseId == null
+                ? inventoryService.getAllInventory()
+                : inventoryService.getInventoryByWarehouse(warehouseId));
     }
 
     @GetMapping("/{id}")
@@ -30,6 +38,19 @@ public class InventoryController {
     @PatchMapping("/{id}/quantity")
     public ResponseEntity<InventoryDTO> updateQuantity(@PathVariable Integer id, @RequestParam Integer quantity) {
         return ResponseEntity.ok(inventoryService.updateQuantity(id, quantity));
+    }
+
+    // Reserve/release were implemented in the service but had no endpoint, so
+    // bin-level reservation was unreachable. Both are exposed here and are also
+    // driven automatically by the pick-list lifecycle.
+    @PostMapping("/{id}/reserve")
+    public ResponseEntity<InventoryDTO> reserveStock(@PathVariable Integer id, @RequestParam Integer quantity) {
+        return ResponseEntity.ok(inventoryService.reserveStock(id, quantity));
+    }
+
+    @PostMapping("/{id}/release")
+    public ResponseEntity<InventoryDTO> releaseStock(@PathVariable Integer id, @RequestParam Integer quantity) {
+        return ResponseEntity.ok(inventoryService.releaseStock(id, quantity));
     }
 
     @PostMapping("/{id}/consume")

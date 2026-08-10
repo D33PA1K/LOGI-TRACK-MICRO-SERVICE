@@ -9,5 +9,7 @@ public interface PickListService {
     PickListDTO assignPickList(Integer id, Integer assignedTo);
     PickListDTO updatePickListStatus(Integer id, PickListStatus status);
     List<PickListDTO> getByWarehouse(Integer warehouseId);
+    List<PickListDTO> getAllPickLists();
     List<PickListDTO> getByAssignedUser(Integer userId);
+    List<PickListDTO> getByFreightOrder(Integer freightOrderId);
 }
