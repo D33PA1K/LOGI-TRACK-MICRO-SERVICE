@@ -35,7 +35,7 @@ spring:
         - id: identity-access-service
           uri: lb://identity-access-service
           predicates:
-            - Path=/api/auth/**,/api/users/**
+            - Path=/api/auth/**,/api/users/**,/api/audit-logs/**
         - id: supplier-po-service
           uri: lb://supplier-po-service
           predicates:
@@ -77,5 +77,5 @@ management:
         include: health,info,gateway
 
 jwt:
-  secret: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
+  secret: ${JWT_SECRET:5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437}
   expiration: 86400000

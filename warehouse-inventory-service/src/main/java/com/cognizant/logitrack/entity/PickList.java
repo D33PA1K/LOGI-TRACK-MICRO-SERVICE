@@ -22,6 +22,14 @@ public class PickList {
     private Integer freightOrderId;
     private Integer warehouseId;
     private Integer assignedTo;
+
+    // What this pick list is picking. Both optional so existing pick lists (and
+    // callers that do not track stock at this level) keep working unchanged; when
+    // supplied, the stock is reserved on creation and consumed on completion.
+    @Column(length = 50)
+    private String sku;
+
+    private Integer quantity;
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private PickListStatus status = PickListStatus.OPEN;

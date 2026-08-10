@@ -37,7 +37,7 @@ public class PurchaseOrderController {
         if (warehouseId != null) {
             return ResponseEntity.ok(purchaseOrderService.getPOsByWarehouse(warehouseId));
         }
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(purchaseOrderService.getAllPOs());
     }
 
     @GetMapping("/{id}")

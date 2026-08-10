@@ -26,13 +26,21 @@ public class PickListController {
     }
 
     @GetMapping
-    public ResponseEntity<List<PickListDTO>> getByWarehouse(@RequestParam Integer warehouseId) {
-        return ResponseEntity.ok(pickListService.getByWarehouse(warehouseId));
+    public ResponseEntity<List<PickListDTO>> getByWarehouse(@RequestParam(required = false) Integer warehouseId) {
+        return ResponseEntity.ok(warehouseId == null
+                ? pickListService.getAllPickLists()
+                : pickListService.getByWarehouse(warehouseId));
     }
 
     @GetMapping("/assigned/{userId}")
     public ResponseEntity<List<PickListDTO>> getByAssignedUser(@PathVariable Integer userId) {
         return ResponseEntity.ok(pickListService.getByAssignedUser(userId));
+    }
+
+    // Consumed by shipment-freight-service's dispatch gate (PickListClient).
+    @GetMapping("/freight-order/{freightOrderId}")
+    public ResponseEntity<List<PickListDTO>> getByFreightOrder(@PathVariable Integer freightOrderId) {
+        return ResponseEntity.ok(pickListService.getByFreightOrder(freightOrderId));
     }
 
     @PatchMapping("/{id}/status")

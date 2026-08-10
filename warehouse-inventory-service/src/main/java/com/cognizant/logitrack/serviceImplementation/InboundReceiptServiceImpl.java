@@ -69,6 +69,11 @@ public class InboundReceiptServiceImpl implements InboundReceiptService {
     }
 
     @Override
+    public List<InboundReceiptDTO> getAllReceipts() {
+        return inboundReceiptRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Override
     public InboundReceiptDTO updateStatus(Integer id, ReceiptStatus status) {
         InboundReceipt receipt = inboundReceiptRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Inbound receipt not found with id: " + id));
         ReceiptStatus previousStatus = receipt.getStatus();

@@ -1,6 +1,7 @@
 package com.cognizant.logitrack.serviceImplementation;
 
 import com.cognizant.logitrack.service.ShipmentService;
+import com.cognizant.logitrack.service.ShipmentStatusTransitions;
 import com.cognizant.logitrack.client.*;
 import com.cognizant.logitrack.exception.BadRequestException;
 import com.cognizant.logitrack.exception.ResourceNotFoundException;
@@ -246,6 +247,14 @@ public class ShipmentServiceImpl implements ShipmentService {
 
         Shipment shipment = findEntity(id);
         ShipmentStatus previous = shipment.getStatus();
+
+        // Guard the lifecycle before touching anything: an illegal transition
+        // would otherwise corrupt the delivery history the analytics module reads.
+        if (!ShipmentStatusTransitions.isAllowed(previous, status)) {
+            throw new BadRequestException(
+                    ShipmentStatusTransitions.describeRejection(previous, status));
+        }
+
         shipment.setStatus(status);
 
         if (status == ShipmentStatus.DELIVERED) {
@@ -308,8 +317,70 @@ public class ShipmentServiceImpl implements ShipmentService {
         return rateCard.getBaseRate().multiply(freightOrder.getWeight());
     }
 
+    /**
+     * A rate card is only priced for a weight band, so applying one outside its
+     * band would quote a cost the carrier never agreed to. Previously an empty
+     * stub, which meant weightSlab was decorative.
+     *
+     * Accepted formats (units are the same as the freight order's weight):
+     *   "0-1000"   inclusive range
+     *   "1000+"    open-ended minimum
+     *   "&lt;=500"     maximum only
+     * An unrecognised or blank slab is treated as "no restriction" rather than
+     * rejecting the shipment, so existing rate cards keep working.
+     */
     private void validateWeightSlab(BigDecimal weight, String weightSlab) {
-        // simplified validation
+        if (weight == null || weightSlab == null || weightSlab.isBlank()) {
+            return;
+        }
+
+        String slab = weightSlab.trim().replace(" ", "");
+
+        try {
+            if (slab.endsWith("+")) {
+                BigDecimal min = new BigDecimal(slab.substring(0, slab.length() - 1));
+                requireAtLeast(weight, min, weightSlab);
+                return;
+            }
+
+            if (slab.startsWith("<=")) {
+                BigDecimal max = new BigDecimal(slab.substring(2));
+                requireAtMost(weight, max, weightSlab);
+                return;
+            }
+
+            if (slab.startsWith(">=")) {
+                BigDecimal min = new BigDecimal(slab.substring(2));
+                requireAtLeast(weight, min, weightSlab);
+                return;
+            }
+
+            int dash = slab.indexOf('-', 1);
+
+            if (dash > 0) {
+                BigDecimal min = new BigDecimal(slab.substring(0, dash));
+                BigDecimal max = new BigDecimal(slab.substring(dash + 1));
+                requireAtLeast(weight, min, weightSlab);
+                requireAtMost(weight, max, weightSlab);
+            }
+        } catch (NumberFormatException e) {
+            // Not a slab format we understand — do not block the shipment on it.
+            log.warn("Unrecognised rate card weightSlab '{}'; skipping weight validation", weightSlab);
+        }
+    }
+
+    private void requireAtLeast(BigDecimal weight, BigDecimal min, String slab) {
+        if (weight.compareTo(min) < 0) {
+            throw new BadRequestException("Freight weight " + weight.stripTrailingZeros().toPlainString()
+                    + " is below the rate card's weight slab (" + slab + "). Choose a rate card for this weight.");
+        }
+    }
+
+    private void requireAtMost(BigDecimal weight, BigDecimal max, String slab) {
+        if (weight.compareTo(max) > 0) {
+            throw new BadRequestException("Freight weight " + weight.stripTrailingZeros().toPlainString()
+                    + " exceeds the rate card's weight slab (" + slab + "). Choose a rate card for this weight.");
+        }
     }
 
     private void sendNotification(Integer userId, String message, NotificationCategory category) {
