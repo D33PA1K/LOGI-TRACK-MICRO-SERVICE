@@ -91,23 +91,33 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     /**
-     * Consumes reserved stock — the goods have physically left the warehouse, so
-     * the reservation is retired without returning anything to on-hand.
+     * Consumes physical stock that has left the warehouse. Draws from available
+     * on-hand first, then falls back to reserved for any remainder. Consumption
+     * is deliberately NOT gated behind a prior reservation — freshly received
+     * goods (which are entirely on-hand, reserved = 0) must be consumable
+     * directly. Total physical stock (on-hand + reserved) is what the guard
+     * checks.
      */
     @Override
     public InventoryDTO consumeStock(Integer id, Integer quantity) {
         requirePositive(quantity, "consume");
 
         WarehouseInventory inv = findEntity(id);
+        int onHand = nullToZero(inv.getQuantityOnHand());
         int reserved = nullToZero(inv.getQuantityReserved());
 
-        if (reserved < quantity) {
-            throw new BadRequestException("Insufficient reserved stock to consume for SKU "
-                    + inv.getSku() + ": " + reserved + " reserved, " + quantity + " requested.");
+        if (onHand + reserved < quantity) {
+            throw new BadRequestException("Insufficient stock to consume for SKU "
+                    + inv.getSku() + ": " + (onHand + reserved) + " available ("
+                    + onHand + " on hand + " + reserved + " reserved), " + quantity + " requested.");
         }
 
-        inv.setQuantityReserved(reserved - quantity);
-        log.info("Consumed {} units of reserved inventory {}", quantity, id);
+        int fromOnHand = Math.min(onHand, quantity);
+        int fromReserved = quantity - fromOnHand;
+        inv.setQuantityOnHand(onHand - fromOnHand);
+        inv.setQuantityReserved(reserved - fromReserved);
+        log.info("Consumed {} units of inventory {} ({} from on-hand, {} from reserved)",
+                quantity, id, fromOnHand, fromReserved);
         return toDTO(inventoryRepository.save(inv));
     }
 

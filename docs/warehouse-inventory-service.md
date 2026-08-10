@@ -154,8 +154,11 @@ Plain reads, no filtering beyond warehouse.
 ### `PATCH /api/inventory/{id}/quantity?quantity=` — WAREHOUSEOPS/ADMIN
 **Overwrites** `quantityOnHand` directly — not a delta. No floor check (can be set negative), no cross-check against `quantityReserved`.
 
+### `POST /api/inventory/{id}/reserve?quantity=` / `POST /api/inventory/{id}/release?quantity=` — WAREHOUSEOPS/ADMIN
+`reserve` moves stock `on-hand → reserved` (guards `on-hand >= quantity`); `release` moves it back `reserved → on-hand` (guards `reserved >= quantity`). These make `quantityReserved` editable (previously the service logic existed but had no endpoint, so reserved was stuck at the value receipts set — `0`).
+
 ### `POST /api/inventory/{id}/consume?quantity=` — WAREHOUSEOPS/ADMIN
-Decrements `quantityReserved` only (assumes a prior reservation); guards `quantityReserved >= quantity` else `400 "Insufficient reserved stock to consume"`. Since `reserveStock` is never actually invoked from any endpoint, `quantityReserved` in practice can only be non-zero if set some other way (not observed in this module).
+Retires physical stock that has left the warehouse. Draws from available **on-hand first**, then falls back to `reserved` for any remainder; guards against consuming more than total physical stock (`on-hand + reserved`) else `400`. **Consumption is intentionally not gated behind a prior reservation** — freshly received goods (all on-hand, `reserved = 0`) are consumable directly. (Previously consume decremented `reserved` only and required a reservation that no endpoint could create, so received stock could never be consumed.)
 
 ### `POST /api/inbound-receipts` — WAREHOUSEOPS/ADMIN
 `InboundReceiptDTO`: `supplierOrderId` `@NotNull`, `warehouseId` `@NotNull`. `warehouseId` must reference an existing warehouse (`400 "Warehouse does not exist: {id}"` otherwise). Forces `status=PENDING` on create (ignores DTO's status). `201`.
@@ -206,7 +209,7 @@ Unconditionally sets `assignedTo` and forces `status=INPROGRESS`, regardless of 
 Confirmed: **no status/active field whatsoever.** Fields: `sku` (`@Column(length=50)`), `productName`, `warehouseId`, `binLocation`, `quantityOnHand`, `quantityReserved`, `lastUpdated` (`@UpdateTimestamp`). No relationships.
 
 ### `serviceImplementation/InventoryServiceImpl.java`
-`updateQuantity` — raw overwrite, no delta semantics. `reserveStock`/`releaseStock` — real, guarded logic (insufficient-stock checks) but **unreachable** from any controller. `consumeStock` — decrements `quantityReserved` with a guard.
+`updateQuantity` — raw overwrite, no delta semantics. `reserveStock`/`releaseStock` — real, guarded logic (insufficient-stock checks), now reachable via `POST .../reserve` and `.../release`. `consumeStock` — draws from on-hand first then falls back to reserved, guarding against consuming more than total physical stock; no longer requires a prior reservation.
 
 ### `serviceImplementation/InboundReceiptServiceImpl.java`
 `createReceipt` forces `PENDING`. `updateStatus` contains the fragile PO-line-item-parsing auto-restock logic described above — the receipt commit is **not transactional with** the inventory sync (two separate concerns, no compensating action on partial failure).
@@ -225,7 +228,7 @@ Confirmed: **no status/active field whatsoever.** Fields: `sku` (`@Column(length
 |---|---|
 | **Data consistency** | The receipt-status commit and the inventory auto-restock are not atomic/transactional together — a Feign or parsing failure leaves the receipt `RECEIVED` with inventory un-synced, silently. |
 | **Fragile integration contract** | `lineItems` string parsing (`"SKU:QTY,SKU:QTY"`) between two independently-deployed services with no schema/versioning — any format drift breaks silently (caught, logged, ignored). |
-| **Dead/unreachable code** | `reserveStock`, `releaseStock` fully implemented, never called. Several repository query methods (`findByWarehouseIdAndBinLocation`, `findByStatus` ×2, `findByFreightOrderId`) unused. |
+| **Dead/unreachable code** | `reserveStock`/`releaseStock` are now exposed via `POST .../reserve` and `.../release`. Several repository query methods (`findByWarehouseIdAndBinLocation`, `findByStatus` ×2, `findByFreightOrderId`) remain unused. |
 | **Weak typing** | `FreightOrderClient.getFreightOrderById` returns `Object` despite a typed `FreightOrderDTO` existing in the same module. |
 | **Silent failures** | `PickListServiceImpl.sendNotification`'s empty catch block hides notification-service outages entirely. |
 | **Correctness bugs** | Unguarded `enum.valueOf` in both `InboundReceiptController.updateStatus` and `PickListController.updateStatus`. |

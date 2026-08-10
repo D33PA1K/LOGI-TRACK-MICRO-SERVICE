@@ -97,22 +97,47 @@ class InventoryServiceImplTest {
     }
 
     @Test
-    @DisplayName("consuming retires reserved stock without returning it to on-hand")
-    void consumeDoesNotReturnStockToOnHand() {
+    @DisplayName("consuming draws from available on-hand first, leaving reservations intact")
+    void consumeDrawsFromOnHandFirst() {
         given(stock(70, 30));
 
         InventoryDTO result = inventoryService.consumeStock(1, 30);
 
-        assertEquals(70, result.getQuantityOnHand(), "consumed goods have left the warehouse");
+        assertEquals(40, result.getQuantityOnHand(), "on-hand is reduced by the consumed amount");
+        assertEquals(30, result.getQuantityReserved(), "reservations are untouched while on-hand covers it");
+    }
+
+    @Test
+    @DisplayName("received stock (reserved = 0) is consumable directly — the original bug")
+    void consumeWorksOnFreshlyReceivedStock() {
+        given(stock(50, 0));
+
+        InventoryDTO result = inventoryService.consumeStock(1, 20);
+
+        assertEquals(30, result.getQuantityOnHand());
         assertEquals(0, result.getQuantityReserved());
     }
 
     @Test
-    @DisplayName("consuming more than is reserved is rejected")
-    void cannotConsumeMoreThanReserved() {
+    @DisplayName("consuming falls back to reserved once on-hand is exhausted")
+    void consumeFallsBackToReserved() {
+        given(stock(5, 10));
+
+        InventoryDTO result = inventoryService.consumeStock(1, 8);
+
+        assertEquals(0, result.getQuantityOnHand());
+        assertEquals(7, result.getQuantityReserved(), "the remainder beyond on-hand comes out of reserved");
+    }
+
+    @Test
+    @DisplayName("consuming more than total physical stock (on-hand + reserved) is rejected")
+    void cannotConsumeMoreThanTotalStock() {
         given(stock(70, 10));
 
-        assertThrows(BadRequestException.class, () -> inventoryService.consumeStock(1, 11));
+        BadRequestException error = assertThrows(BadRequestException.class,
+                () -> inventoryService.consumeStock(1, 81));
+
+        assertTrue(error.getMessage().contains("80 available"), error.getMessage());
         verify(inventoryRepository, never()).save(any());
     }
 
