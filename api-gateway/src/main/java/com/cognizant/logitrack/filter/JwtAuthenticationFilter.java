@@ -74,26 +74,18 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * Only the endpoints that cannot possibly carry a valid access token.
+     * The only endpoint that cannot carry a valid access token yet: login is how
+     * a client obtains one.
      *
      * /api/auth/register is deliberately NOT here: it creates users and is
-     * ADMIN-only, so it needs a token like any other privileged call. It used to
-     * be listed, which meant the gateway waved through unauthenticated
-     * registration attempts and relied entirely on the downstream service to
-     * reject them.
-     *
-     * /api/auth/refresh and /api/auth/logout are public because they authenticate
-     * with the refresh token in the body, and are typically called precisely
-     * because the access token has expired.
+     * ADMIN-only, so it needs a token like any other privileged call.
      */
     private boolean isPublicRequest(HttpMethod method, String path) {
         if (method != HttpMethod.POST) {
             return false;
         }
 
-        return "/api/auth/login".equals(path)
-                || "/api/auth/refresh".equals(path)
-                || "/api/auth/logout".equals(path);
+        return "/api/auth/login".equals(path);
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {

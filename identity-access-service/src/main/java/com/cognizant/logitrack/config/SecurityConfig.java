@@ -47,11 +47,9 @@ public class SecurityConfig {
                                 writeError(response, HttpServletResponse.SC_FORBIDDEN,
                                         "You do not have permission to perform this action")))
                                 .authorizeHttpRequests(auth -> auth
-                        // Refresh and logout are authenticated by possession of the
-                        // refresh token itself, which is validated against the database —
-                        // an expired access token must not block either of them.
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh",
-                                "/api/auth/logout").permitAll()
+                        // Login is the only public endpoint — it's how a client obtains
+                        // a token in the first place. Everything else needs a valid JWT.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/audit-logs/**").hasAnyRole("ANALYST", "ADMIN")

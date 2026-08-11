@@ -10,7 +10,6 @@ import com.cognizant.logitrack.entity.User;
 import com.cognizant.logitrack.enums.UserStatus;
 import com.cognizant.logitrack.repository.UserRepository;
 import com.cognizant.logitrack.security.CurrentUserProvider;
-import com.cognizant.logitrack.service.RefreshTokenService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
@@ -25,14 +24,12 @@ public class UserServiceImpl implements UserService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
     private final CurrentUserProvider currentUserProvider;
-    private final RefreshTokenService refreshTokenService;
 
-    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, AuditLogService auditLogService, CurrentUserProvider currentUserProvider, RefreshTokenService refreshTokenService) {
+    public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, AuditLogService auditLogService, CurrentUserProvider currentUserProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.currentUserProvider = currentUserProvider;
-        this.refreshTokenService = refreshTokenService;
     }
 
     @Override
@@ -65,13 +62,9 @@ public class UserServiceImpl implements UserService {
         User saved = userRepository.save(user);
         log.info("User status updated: {} -> {}", saved.getEmail(), status);
 
-        // Deactivating must actually end the session, not just block the next
-        // login: revoking the refresh tokens means the user cannot renew their
-        // short-lived access token, so access stops within its remaining lifetime.
-        if (status != UserStatus.ACTIVE) {
-            refreshTokenService.revokeAllForUser(saved.getUserId());
-        }
-
+        // Note: with stateless JWTs there is nothing to revoke here. Deactivation
+        // blocks the next login immediately; any access token already issued
+        // remains valid until it expires.
         audit(status == UserStatus.ACTIVE ? "USER_ACTIVATED" : "USER_DEACTIVATED", saved.getUserId());
         return toDTO(saved);
     }
@@ -81,7 +74,6 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
-        refreshTokenService.revokeAllForUser(user.getUserId());
         log.info("User soft-deleted: {}", user.getEmail());
         audit("USER_DELETED", user.getUserId());
     }

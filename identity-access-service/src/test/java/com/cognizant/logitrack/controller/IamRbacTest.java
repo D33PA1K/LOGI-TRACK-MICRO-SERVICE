@@ -105,9 +105,9 @@ class IamRbacTest {
         @Test
         @DisplayName("an unauthenticated request gets 401, not 403")
         void anonymousGetsUnauthorized() throws Exception {
-            // 401 vs 403 is not cosmetic: the frontend refreshes its access token
-            // on 401, so answering 403 to an expired token would silently break
-            // the refresh flow instead of renewing the session.
+            // 401 vs 403 is not cosmetic: the frontend treats a 401 as "session
+            // expired" and redirects to login, so answering 403 to a missing/expired
+            // token would strand the user instead of sending them to sign in again.
             mockMvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
         }
     }

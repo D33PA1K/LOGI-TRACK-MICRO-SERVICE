@@ -13,14 +13,8 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoginResponseDTO {
 
-    /**
-     * Short-lived access JWT. Still named "token" so existing clients keep
-     * working; {@link #expiresInSeconds} tells the client when to refresh it.
-     */
+    /** The stateless access JWT used for all authenticated calls. */
     private String token;
-
-    /** Long-lived, revocable, opaque refresh token. Absent on a refresh that did not rotate. */
-    private String refreshToken;
 
     /** Access-token lifetime in seconds, so the client never has to decode the JWT to know. */
     private Long expiresInSeconds;

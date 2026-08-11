@@ -39,13 +39,11 @@ resilience4j:
 
 jwt:
   secret: ${JWT_SECRET:5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437}
-  # Access token: deliberately short. A signed JWT cannot be revoked, so its
-  # lifetime is the worst-case window during which a deactivated user still has
-  # access. 30 minutes, not 24 hours.
-  expiration: ${JWT_ACCESS_EXPIRATION:1800000}
-  # Refresh token: long-lived but stored server-side and revocable, so a session
-  # can be ended immediately. 7 days.
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  # Single stateless access token, no refresh flow. Its lifetime is both the
+  # session length and the worst-case window in which a just-deactivated user's
+  # existing token still works, so it is a balance of usability vs. that window.
+  # 24 hours by default.
+  expiration: ${JWT_ACCESS_EXPIRATION:86400000}
 
 
 
